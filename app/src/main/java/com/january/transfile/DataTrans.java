@@ -6,11 +6,35 @@ import java.io.OutputStream;
 import java.net.Socket;
 
 public class DataTrans {
-    public void test() throws IOException {
-        Socket session_s = new Socket("127.0.0.1", 19999);
-        String message = "hello this is a test";
+    Socket session_s;
+
+    public void connect(String ip, int port) throws IOException {
+        session_s = new Socket(ip, port);
+    }
+
+    public boolean isConected() {
+        boolean connected = (session_s == null)? false:session_s.isConnected();
+        return connected;
+    }
+
+    public void send(byte[] data) throws IOException {
         OutputStream sending_stream = session_s.getOutputStream();
-        sending_stream.write(message.getBytes());
-        session_s.close();
+        sending_stream.write(data);
+    }
+
+    public void disconnect() {
+        try {
+            session_s.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        super.finalize();
+        if(session_s != null) {
+            session_s.close();
+        }
     }
 }
