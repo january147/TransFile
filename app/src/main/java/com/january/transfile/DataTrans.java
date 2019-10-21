@@ -1,11 +1,15 @@
 package com.january.transfile;
 
+import android.net.Uri;
+import android.util.Log;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
 public class DataTrans {
+    private static final String TAG = "DataTrans";
     Socket session_s;
 
     public void connect(String ip, int port) throws IOException {
