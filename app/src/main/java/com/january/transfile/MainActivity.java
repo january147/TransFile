@@ -11,6 +11,8 @@ import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.ParcelFileDescriptor;
 import android.provider.OpenableColumns;
 import android.util.Log;
@@ -29,29 +31,81 @@ import java.net.URL;
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity" ;
     DataTrans trans = new DataTrans();
+    HandlerThread bg_thread;
+    Handler bg_task_handler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         checkShareFile();
+        init_bg();
+    }
+
+    public void init_bg() {
+        trans = new DataTrans();
+        bg_thread = new HandlerThread("bg_thread");
+        bg_thread.start();
+        bg_task_handler= new Handler(bg_thread.getLooper());
     }
 
     //callback of sendFile
     public void onSendFileReturned(boolean success) {
         if (success) {
-            Toast.makeText(this, "send success", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "sending successed", Toast.LENGTH_SHORT).show();
             Log.d(TAG, "onSendFileReturned: success");
         } else {
-            Toast.makeText(this, "send failed", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "sending failed", Toast.LENGTH_SHORT).show();
             Log.d(TAG, "onSendFileReturned: failed");
         }
+    }
+
+    //callback of sendFile
+    public void onConnectReturned(boolean success) {
+        if (success) {
+            Toast.makeText(this, "connection established", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "onConnectReturned: success");
+        } else {
+            Toast.makeText(this, "failed to establish connection", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "onConnectReturned: failed");
+        }
+    }
+
+    public void connect(final String ip, final int port) {
+        if(trans.isConected()) {
+            onConnectReturned(true);
+        }
+        Runnable connection_task = new Runnable() {
+            @Override
+            public void run() {
+                boolean success = true;
+                try {
+                    trans.connect(ip, port);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    success = false;
+                }
+                final boolean return_value = success;
+                Runnable callback = new Runnable() {
+                    @Override
+                    public void run() {
+                        onConnectReturned(return_value);
+                    }
+                };
+                runOnUiThread(callback);
+            }
+        };
+        bg_task_handler.post(connection_task);
     }
 
     // make sure the connection has been established before call this method.
     public void sendFile(Uri uri) {
         final Uri final_data_url = uri;
-        Thread sending_thread = new Thread(new Runnable() {
+        if (!trans.isConected()) {
+            Toast.makeText(this,"Not connect to server", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Runnable sending_task = new Runnable() {
             // sending thread
             @Override
             public void run() {
@@ -77,11 +131,19 @@ public class MainActivity extends AppCompatActivity {
                     success = false;
                     Log.d(TAG, "sending: " + e.getMessage());
                 }
+                final boolean return_value = success;
                 // return
-                onSendFileReturned(success);
+                Runnable callback = new Runnable() {
+                    @Override
+                    public void run() {
+                        onSendFileReturned(return_value);
+                    }
+                };
+                runOnUiThread(callback);
+
             }
-        });
-        sending_thread.start();
+        };
+        bg_task_handler.post(sending_task);
     }
 
     public void checkShareFile() {
@@ -124,5 +186,10 @@ public class MainActivity extends AppCompatActivity {
         }
         sendFile(data_uri);
         Log.d(TAG, "onButtonTestClick: ");
+    }
+
+    public void onButtonConnectClick(View v) {
+        connect("127.0.0.1", 19999);
+        Log.d(TAG, "onButtonConnectClick: ");
     }
 }
