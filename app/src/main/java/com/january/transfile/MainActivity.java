@@ -60,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    //callback of sendFile
+    //callback of connect
     public void onConnectReturned(boolean success) {
         if (success) {
             Toast.makeText(this, "connection established", Toast.LENGTH_SHORT).show();
